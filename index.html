@@ -97,11 +97,15 @@
         .dashboard-options {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: space-between;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            padding: 12px 20px;
             font-size: 0.9em;
             color: var(--text-light);
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
         }
         .toggle-switch {
             position: relative;
@@ -206,6 +210,26 @@
         
         /* Indicador de Carregamento */
         .loader { text-align: center; padding: 50px; font-size: 1em; color: var(--text-light); }
+        
+        /* MELHORIAS PARA CELULAR */
+        @media (max-width: 600px) {
+            .kpi-grid {
+                grid-template-columns: 1fr; /* Empilha os cards */
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .hero-value {
+                font-size: 2.2em;
+            }
+            .kpi-value {
+                font-size: 1.5em;
+            }
+            .chart-container {
+                padding: 15px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -332,8 +356,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let charts = {};
     let allTransactions = [];
     
-    // Recupera a preferência do usuário do localStorage, default é true
-    let includeMotoCost = JSON.parse(localStorage.getItem('includeMotoCost')) ?? true;
+    // ATUALIZAÇÃO: Padrão é `false` (não incluir) na primeira visita.
+    let includeMotoCost = JSON.parse(localStorage.getItem('includeMotoCost')) ?? false;
     includeMotoToggle.checked = includeMotoCost;
     
     document.getElementById('data').valueAsDate = new Date();
@@ -431,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calculateIndicators(sourceTransactions) {
-        // CORREÇÃO: Filtra pela transação de ID 1, que é a compra da moto.
         const transactions = includeMotoCost
             ? sourceTransactions
             : sourceTransactions.filter(t => t.id !== 1);
@@ -461,7 +484,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return acc;
         }, {});
 
-        // NOVO: Agrupamento de custos por mês para o novo gráfico
         const monthlyCosts = transactions.reduce((acc, t) => {
             if (t.valor > 0) {
                 const monthYear = t.data.substring(0, 7); // "YYYY-MM"
@@ -500,13 +522,13 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="chart-container"><canvas id="expenses-chart"></canvas></div>
             <div class="chart-container"><canvas id="consumption-chart"></canvas></div>
-            <!-- NOVO: Container para o gráfico de custo mensal -->
             <div class="chart-container"><canvas id="monthly-cost-chart"></canvas></div>
         `;
         renderCharts(indicators);
     }
     
     function renderCharts(indicators) {
+        const isMobile = () => window.innerWidth < 600;
         Object.values(charts).forEach(chart => chart.destroy());
         const categoryLabels = {
             'Gasolina': '⛽ Gasolina',
@@ -530,10 +552,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const consumptionData = indicators.consumptions || [];
         charts.consumption = new Chart(consumptionCtx, {
             type: 'line', data: { labels: consumptionData.map(c => new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR')), datasets: [{ label: 'Consumo (km/L)', data: consumptionData.map(c => c.consumption.toFixed(2)), borderColor: '#22C55E', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.2, fill: true }] },
-            options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Histórico de Consumo (km/L)', font: { size: 16, weight: '500' } } }, scales: { y: { beginAtZero: false } } }
+            options: { 
+                responsive: true, 
+                plugins: { legend: { display: false }, title: { display: true, text: 'Histórico de Consumo (km/L)', font: { size: 16, weight: '500' } } }, 
+                scales: { 
+                    x: {
+                        ticks: {
+                            callback: function(value, index, ticks) {
+                                if (isMobile() && ticks.length > 8) {
+                                    return index % Math.ceil(ticks.length / 5) === 0 ? this.getLabelForValue(value) : null;
+                                }
+                                return this.getLabelForValue(value);
+                            },
+                            autoSkip: false,
+                            maxRotation: 45,
+                        }
+                    },
+                    y: { beginAtZero: false } 
+                } 
+            }
         });
 
-        // NOVO: Gráfico de custo mensal
+        // Gráfico de custo mensal
         const monthlyCtx = document.getElementById('monthly-cost-chart').getContext('2d');
         const monthlyCostsData = indicators.monthlyCosts || {};
         const sortedMonths = Object.keys(monthlyCostsData).sort();
@@ -562,6 +602,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     title: { display: true, text: 'Custo por Mês', font: { size: 16, weight: '500' } }
                 },
                 scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 70, // Rotação para melhor leitura no mobile
+                            minRotation: 45
+                        }
+                    },
                     y: { beginAtZero: true }
                 }
             }
