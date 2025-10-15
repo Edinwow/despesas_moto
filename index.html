@@ -20,15 +20,24 @@
             --nav-height: 65px;
             --border-radius: 16px;
             --shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+            --app-max-width: 480px;
         }
         * {
             box-sizing: border-box;
         }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
+            background-color: #E5E7EB; /* Fundo mais escuro para destacar o app */
             color: var(--text-color);
             margin: 0;
+        }
+        .app-container {
+            max-width: var(--app-max-width);
+            margin: 0 auto;
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
             padding-bottom: var(--nav-height);
         }
         /* Estrutura das Abas */
@@ -182,8 +191,10 @@
         .bottom-nav {
             position: fixed;
             bottom: 0;
-            left: 0;
+            left: 50%;
+            transform: translateX(-50%);
             width: 100%;
+            max-width: var(--app-max-width);
             height: var(--nav-height);
             background-color: var(--card-bg);
             box-shadow: 0 -5px 20px rgba(0,0,0,0.08);
@@ -233,7 +244,7 @@
     </style>
 </head>
 <body>
-
+<div class="app-container">
     <!-- ABA DE REGISTRO -->
     <div id="registro-view" class="view active">
         <div class="page-header"><h1>Olá! 👋</h1></div>
@@ -253,23 +264,23 @@
             </div>
             <div class="form-group">
                 <label for="valor">Valor (R$)</label>
-                <input type="number" id="valor" name="valor" step="0.01" placeholder="Ex: 50,25" required>
+                <input type="text" inputmode="decimal" id="valor" name="valor" placeholder="Ex: 50,25" required>
             </div>
             
             <div id="gasolina-fields" class="hidden-field">
                 <div class="form-group">
                     <label for="quilometragem">Quilometragem</label>
-                    <input type="number" id="quilometragem" name="quilometragem" step="0.1" placeholder="Ex: 9500,5">
+                    <input type="text" inputmode="decimal" id="quilometragem" name="quilometragem" placeholder="Ex: 9500,5">
                 </div>
                 <div class="form-group">
                     <label for="valor_litro">Valor do Litro (R$)</label>
-                    <input type="number" id="valor_litro" name="valor_litro" step="0.01" placeholder="Ex: 5,99">
+                    <input type="text" inputmode="decimal" id="valor_litro" name="valor_litro" placeholder="Ex: 5,99">
                 </div>
             </div>
             <div id="oleo-fields" class="hidden-field">
                 <div class="form-group">
                     <label for="oleo_quilometragem">Quilometragem (Opcional)</label>
-                    <input type="number" id="oleo_quilometragem" name="oleo_quilometragem_oleo" step="0.1">
+                    <input type="text" inputmode="decimal" id="oleo_quilometragem" name="oleo_quilometragem_oleo">
                 </div>
             </div>
             <div id="outros-fields" class="hidden-field">
@@ -335,7 +346,7 @@
             <span>Dashboard</span>
         </button>
     </nav>
-
+</div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO ---
@@ -470,11 +481,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
             })
             .reduce((sum, t) => sum + (t.valor || 0), 0);
+        
+        const kmValues = transactions
+            .map(t => t.quilometragem)
+            .filter(km => km && km > 0);
+
+        let latestOdometer = 0;
+        let totalDistance = 0;
+
+        if (kmValues.length > 0) {
+            const minKm = Math.min(...kmValues);
+            const maxKm = Math.max(...kmValues);
+            latestOdometer = maxKm;
+            if (kmValues.length > 1) {
+                totalDistance = maxKm - minKm;
+            }
+        }
             
-        const lastTransactionWithKm = [...transactions].reverse().find(t => t.quilometragem);
-        const initialKm = transactions.find(t => t.quilometragem)?.quilometragem || 0;
-        const latestKm = lastTransactionWithKm ? lastTransactionWithKm.quilometragem : initialKm;
-        const totalDistance = latestKm - initialKm;
         const totalCost = transactions.reduce((sum, t) => sum + (t.valor || 0), 0);
         const costPerKm = totalDistance > 0 ? totalCost / totalDistance : 0;
         const expensesByCategory = transactions.reduce((acc, t) => {
@@ -504,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const avgConsumption = consumptions.length > 0 ? consumptions.reduce((sum, c) => sum + c.consumption, 0) / consumptions.length : 0;
 
-        return { monthlyCost, totalCost, costPerKm, totalDistance, avgConsumption, expensesByCategory, consumptions, monthlyCosts };
+        return { monthlyCost, totalCost, costPerKm, latestOdometer, avgConsumption, expensesByCategory, consumptions, monthlyCosts };
     }
 
     function renderDashboard(indicators) {
@@ -517,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="kpi-grid">
                 <div class="kpi-card"><p class="kpi-title">💰 Custo Total</p><p class="kpi-value">${formatCurrency(indicators.totalCost)}</p></div>
                 <div class="kpi-card"><p class="kpi-title">💸 Custo por KM</p><p class="kpi-value">${formatCurrency(indicators.costPerKm)}</p></div>
-                <div class="kpi-card"><p class="kpi-title">🛣️ Distância</p><p class="kpi-value">${(indicators.totalDistance || 0).toFixed(0)} <span class="unit">km</span></p></div>
+                <div class="kpi-card"><p class="kpi-title">🛣️ Odômetro</p><p class="kpi-value">${(indicators.latestOdometer || 0).toLocaleString('pt-BR')} <span class="unit">km</span></p></div>
                 <div class="kpi-card"><p class="kpi-title">⛽ Consumo</p><p class="kpi-value">${(indicators.avgConsumption || 0).toFixed(1)} <span class="unit">km/L</span></p></div>
             </div>
             <div class="chart-container"><canvas id="expenses-chart"></canvas></div>
@@ -551,21 +574,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const consumptionCtx = document.getElementById('consumption-chart').getContext('2d');
         const consumptionData = indicators.consumptions || [];
         charts.consumption = new Chart(consumptionCtx, {
-            type: 'line', data: { labels: consumptionData.map(c => new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR')), datasets: [{ label: 'Consumo (km/L)', data: consumptionData.map(c => c.consumption.toFixed(2)), borderColor: '#22C55E', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.2, fill: true }] },
+            type: 'line', data: { 
+                labels: consumptionData.map(c => new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})), 
+                datasets: [{ label: 'Consumo (km/L)', data: consumptionData.map(c => c.consumption.toFixed(2)), borderColor: '#22C55E', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.2, fill: true }] 
+            },
             options: { 
                 responsive: true, 
                 plugins: { legend: { display: false }, title: { display: true, text: 'Histórico de Consumo (km/L)', font: { size: 16, weight: '500' } } }, 
                 scales: { 
                     x: {
                         ticks: {
-                            callback: function(value, index, ticks) {
-                                if (isMobile() && ticks.length > 8) {
-                                    return index % Math.ceil(ticks.length / 5) === 0 ? this.getLabelForValue(value) : null;
-                                }
-                                return this.getLabelForValue(value);
-                            },
-                            autoSkip: false,
-                            maxRotation: 45,
+                            autoSkip: true,
+                            maxTicksLimit: isMobile() ? 6 : 10,
+                            maxRotation: 0,
+                            minRotation: 0
                         }
                     },
                     y: { beginAtZero: false } 
@@ -652,6 +674,14 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', (e) => {
         e.preventDefault();
         const submitBtn = form.querySelector('.submit-btn');
+        
+        // Tratar vírgulas nos campos numéricos
+        form.querySelectorAll('input[inputmode=decimal]').forEach(input => {
+            if (input.value) {
+                input.value = input.value.replace(',', '.');
+            }
+        });
+
         submitBtn.disabled = true;
         submitBtn.textContent = 'Enviando...';
 
