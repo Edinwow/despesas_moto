@@ -94,6 +94,42 @@
         .hidden-field { display: none; }
 
         /* Dashboard de Visualização */
+        .dashboard-options {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: var(--text-light);
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
         .hero-card {
             background: linear-gradient(to right, var(--primary-color), #818CF8);
             color: white;
@@ -113,7 +149,6 @@
             font-size: 2.5em;
             font-weight: 700;
         }
-
         .kpi-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -251,6 +286,15 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
             </button>
         </div>
+
+        <div class="dashboard-options">
+            <span>Incluir custo da moto?</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="include-moto-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+
         <div id="dashboard-content">
             <!-- Conteúdo do Dashboard será gerado via JavaScript -->
         </div>
@@ -281,14 +325,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const categorySelect = document.getElementById('categoria');
     const refreshBtn = document.getElementById('refresh-btn');
     const dashboardContent = document.getElementById('dashboard-content');
+    const includeMotoToggle = document.getElementById('include-moto-toggle');
 
     // --- ESTADO DA APLICAÇÃO ---
     let dashboardInitialized = false;
     let charts = {};
+    let allTransactions = [];
+    
+    // Recupera a preferência do usuário do localStorage, default é true
+    let includeMotoCost = JSON.parse(localStorage.getItem('includeMotoCost')) ?? true;
+    includeMotoToggle.checked = includeMotoCost;
     
     document.getElementById('data').valueAsDate = new Date();
 
-    // --- LÓGICA DE NAVEGAÇÃO ENTRE ABAS ---
+    // --- LÓGICA DE NAVEGAÇÃO E CONTROLES ---
     navButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const targetViewId = btn.getAttribute('data-view');
@@ -300,16 +350,25 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
 
             if (targetViewId === 'dashboard-view' && !dashboardInitialized) {
-                updateDashboard();
-                dashboardInitialized = true;
+                loadInitialData();
             }
         });
     });
 
-    refreshBtn.addEventListener('click', updateDashboard);
+    refreshBtn.addEventListener('click', loadInitialData);
+
+    includeMotoToggle.addEventListener('change', () => {
+        includeMotoCost = includeMotoToggle.checked;
+        localStorage.setItem('includeMotoCost', JSON.stringify(includeMotoCost));
+        if (dashboardInitialized) {
+            const indicators = calculateIndicators(allTransactions);
+            renderDashboard(indicators);
+        }
+    });
 
     // --- LÓGICA DO DASHBOARD ---
-    async function updateDashboard() {
+    async function loadInitialData() {
+        dashboardInitialized = false; 
         dashboardContent.innerHTML = `<p class="loader">Analisando seus dados... ⏳</p>`;
 
         try {
@@ -317,9 +376,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha na rede');
             
             const csvText = await response.text();
-            const transactions = parseAndTransformCSV(csvText);
-            const indicators = calculateIndicators(transactions);
+            allTransactions = parseAndTransformCSV(csvText);
+            
+            const indicators = calculateIndicators(allTransactions);
             renderDashboard(indicators);
+            dashboardInitialized = true;
         } catch (error) {
             dashboardContent.innerHTML = `<p class="loader">Não foi possível carregar os dados. Tente novamente.</p>`;
             console.error("Erro ao atualizar dashboard:", error);
@@ -327,31 +388,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function parseAndTransformCSV(csvText) {
-        const rows = csvText.split('\n').slice(1);
+        const rows = csvText.trim().split('\n').slice(1);
         const groupedData = {};
         for (const row of rows) {
-            const columns = row.split(',');
+            const columns = row.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
             if (columns.length < 5) continue;
             
-            const [id, categoria, data, chave, valor_numerico_str, valor_textual] = columns.map(s => s.trim());
+            const cleanValue = (val) => {
+                if (!val) return '';
+                let cleaned = val.trim();
+                if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+                    cleaned = cleaned.substring(1, cleaned.length - 1);
+                }
+                return cleaned.trim();
+            };
+            
+            const [id, categoria, data, chave, valor_numerico_str, valor_textual] = columns.map(cleanValue);
 
-            if (!id || !categoria || !data) continue;
+            if (!id || !categoria || !data || isNaN(parseInt(id))) continue;
             
             if (!groupedData[id]) {
                 groupedData[id] = { id: parseInt(id), categoria: categoria, data: data.split('/').reverse().join('-') };
             }
             const cleanChave = chave.toLowerCase().replace(/ /g, '_');
-            const numericValue = parseFloat(valor_numerico_str.replace('.', '').replace(',', '.'));
+            
+            let numericValue = NaN;
+            if(valor_numerico_str) {
+                 numericValue = parseFloat(valor_numerico_str.replace(/\./g, '').replace(',', '.'));
+            }
 
-            if (cleanChave === 'descrição') groupedData[id].descricao = valor_textual;
-            else if (cleanChave === 'valor') groupedData[id].valor = numericValue;
-            else if (cleanChave === 'quilometragem') groupedData[id].quilometragem = numericValue;
-            else if (cleanChave === 'valor_do_litro') groupedData[id].valorLitro = numericValue;
+            if (cleanChave === 'descrição' && valor_textual && valor_textual.toLowerCase() !== 'null') {
+                groupedData[id].descricao = valor_textual;
+            } else if (cleanChave === 'valor' && !isNaN(numericValue)) {
+                groupedData[id].valor = numericValue;
+            } else if (cleanChave === 'quilometragem' && !isNaN(numericValue)) {
+                groupedData[id].quilometragem = numericValue;
+            } else if (cleanChave === 'valor_do_litro' && !isNaN(numericValue)) {
+                groupedData[id].valorLitro = numericValue;
+            }
         }
         return Object.values(groupedData).sort((a,b) => new Date(a.data) - new Date(b.data) || a.id - b.id);
     }
 
-    function calculateIndicators(transactions) {
+    function calculateIndicators(sourceTransactions) {
+        // CORREÇÃO: Filtra pela transação de ID 1, que é a compra da moto.
+        const transactions = includeMotoCost
+            ? sourceTransactions
+            : sourceTransactions.filter(t => t.id !== 1);
+
         if (transactions.length === 0) return {};
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth();
@@ -359,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const monthlyCost = transactions
             .filter(t => {
-                const transactionDate = new Date(t.data + 'T00:00:00'); // Garante fuso horário local
+                const transactionDate = new Date(t.data + 'T00:00:00');
                 return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
             })
             .reduce((sum, t) => sum + (t.valor || 0), 0);
@@ -377,6 +461,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return acc;
         }, {});
 
+        // NOVO: Agrupamento de custos por mês para o novo gráfico
+        const monthlyCosts = transactions.reduce((acc, t) => {
+            if (t.valor > 0) {
+                const monthYear = t.data.substring(0, 7); // "YYYY-MM"
+                acc[monthYear] = (acc[monthYear] || 0) + t.valor;
+            }
+            return acc;
+        }, {});
+
         const fuelStops = transactions.filter(t => t.categoria === 'Gasolina' && t.quilometragem && t.valor && t.valorLitro).sort((a, b) => a.quilometragem - b.quilometragem);
         const consumptions = [];
         for (let i = 1; i < fuelStops.length; i++) {
@@ -389,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const avgConsumption = consumptions.length > 0 ? consumptions.reduce((sum, c) => sum + c.consumption, 0) / consumptions.length : 0;
 
-        return { monthlyCost, totalCost, costPerKm, totalDistance, avgConsumption, expensesByCategory, consumptions };
+        return { monthlyCost, totalCost, costPerKm, totalDistance, avgConsumption, expensesByCategory, consumptions, monthlyCosts };
     }
 
     function renderDashboard(indicators) {
@@ -407,6 +500,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="chart-container"><canvas id="expenses-chart"></canvas></div>
             <div class="chart-container"><canvas id="consumption-chart"></canvas></div>
+            <!-- NOVO: Container para o gráfico de custo mensal -->
+            <div class="chart-container"><canvas id="monthly-cost-chart"></canvas></div>
         `;
         renderCharts(indicators);
     }
@@ -419,6 +514,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'Outros': '🛠️ Outros',
             'Infração': '⚠️ Infração'
         };
+
+        // Gráfico de despesas por categoria
         const expensesCtx = document.getElementById('expenses-chart').getContext('2d');
         charts.expenses = new Chart(expensesCtx, {
             type: 'doughnut', data: { 
@@ -428,11 +525,46 @@ document.addEventListener('DOMContentLoaded', () => {
             options: { responsive: true, plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Despesas por Categoria', font: { size: 16, weight: '500' } } } }
         });
 
+        // Gráfico de histórico de consumo
         const consumptionCtx = document.getElementById('consumption-chart').getContext('2d');
         const consumptionData = indicators.consumptions || [];
         charts.consumption = new Chart(consumptionCtx, {
             type: 'line', data: { labels: consumptionData.map(c => new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR')), datasets: [{ label: 'Consumo (km/L)', data: consumptionData.map(c => c.consumption.toFixed(2)), borderColor: '#22C55E', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.2, fill: true }] },
             options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Histórico de Consumo (km/L)', font: { size: 16, weight: '500' } } }, scales: { y: { beginAtZero: false } } }
+        });
+
+        // NOVO: Gráfico de custo mensal
+        const monthlyCtx = document.getElementById('monthly-cost-chart').getContext('2d');
+        const monthlyCostsData = indicators.monthlyCosts || {};
+        const sortedMonths = Object.keys(monthlyCostsData).sort();
+        const monthLabels = sortedMonths.map(month => {
+            const [year, m] = month.split('-');
+            const date = new Date(year, m - 1);
+            return date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('. de','');
+        });
+        charts.monthly = new Chart(monthlyCtx, {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    label: 'Custo Mensal (R$)',
+                    data: sortedMonths.map(month => monthlyCostsData[month]),
+                    backgroundColor: 'rgba(236, 72, 153, 0.7)',
+                    borderColor: 'var(--accent-color)',
+                    borderRadius: 5,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Custo por Mês', font: { size: 16, weight: '500' } }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
         });
     }
 
