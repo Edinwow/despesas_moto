@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Despesas moto</title>
+    <link rel="icon" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640'%3e%3cpath fill='%236565ef' d='M280 80C266.7 80 256 90.7 256 104C256 117.3 266.7 128 280 128L336.6 128L359.1 176.7L264 248C230.6 222.9 189 208 144 208L88 208C74.7 208 64 218.7 64 232C64 245.3 74.7 256 88 256L144 256C222.5 256 287.2 315.6 295.2 392L269.8 392C258.6 332.8 206.5 288 144 288C73.3 288 16 345.3 16 416C16 486.7 73.3 544 144 544C206.5 544 258.5 499.2 269.8 440L320 440C333.3 440 344 429.3 344 416L344 393.5C344 348.4 369.7 308.1 409.5 285.8L421.6 311.9C389.2 335.1 368.1 373.1 368.1 416C368.1 486.7 425.4 544 496.1 544C566.8 544 624.1 486.7 624.1 416C624.1 345.3 566.8 288 496.1 288C485.4 288 475.1 289.3 465.2 291.8L433.8 224L488 224C501.3 224 512 213.3 512 200L512 152C512 138.7 501.3 128 488 128L434.7 128C427.8 128 421 130.2 415.5 134.4L398.4 147.2L373.8 93.9C369.9 85.4 361.4 80 352 80L280 80zM445.8 364.4L474.2 426C479.8 438 494 443.3 506 437.7C518 432.1 523.3 417.9 517.7 405.9L489.2 344.3C491.4 344.1 493.6 344 495.9 344C535.7 344 567.9 376.2 567.9 416C567.9 455.8 535.7 488 495.9 488C456.1 488 423.9 455.8 423.9 416C423.9 395.8 432.2 377.5 445.7 364.4zM144 488C104.2 488 72 455.8 72 416C72 376.2 104.2 344 144 344C175.3 344 202 364 211.9 392L144 392C130.7 392 120 402.7 120 416C120 429.3 130.7 440 144 440L211.9 440C202 468 175.3 488 144 488z'/%3e%3c/svg%3e">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6366F1; /* Indigo */
+            --accent-color: #EC4899; /* Pink */
+            --bg-color: #F3F4F6; /* Gray 100 */
+            --card-bg: #FFFFFF;
+            --text-color: #111827; /* Gray 900 */
+            --text-light: #6B7281; /* Gray 500 */
+            --nav-height: 65px;
+            --border-radius: 16px;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding-bottom: var(--nav-height);
+        }
+        /* Estrutura das Abas */
+        .view {
+            display: none;
+            padding: 20px 20px 40px 20px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .view.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        h1 {
+            font-size: 2em;
+            font-weight: 700;
+            margin: 0;
+        }
+        #refresh-btn {
+            background: none; border: none; font-size: 1.5em; cursor: pointer; color: var(--primary-color); padding: 5px;
+        }
+        
+        /* Formulário de Registro */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-light); }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid #EAEAEA;
+            border-radius: var(--border-radius);
+            font-size: 1em;
+            background-color: #F9F9F9;
+            -webkit-appearance: none;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(to right, var(--primary-color), var(--accent-color));
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1.1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .submit-btn:hover {
+            transform: scale(1.02);
+        }
+        .submit-btn:disabled {
+            background: #b4b4b4;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .hidden-field { display: none; }
+
+        /* Dashboard de Visualização */
+        .hero-card {
+            background: linear-gradient(to right, var(--primary-color), #818CF8);
+            color: white;
+            padding: 30px 25px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        .hero-label {
+            margin: 0 0 10px 0;
+            font-size: 1em;
+            opacity: 0.9;
+        }
+        .hero-value {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+        .kpi-title { font-size: 0.8em; color: var(--text-light); margin: 0 0 8px 0; text-transform: uppercase; }
+        .kpi-value { font-size: 1.6em; font-weight: 700; color: var(--text-color); }
+        .kpi-value .unit { font-size: 0.6em; font-weight: 500; color: var(--text-light); }
+        
+        .chart-container {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        /* Navegação Inferior Fixa */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--nav-height);
+            background-color: var(--card-bg);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-around;
+            border-top: 1px solid #EAEAEA;
+        }
+        .nav-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            font-size: 0.9em;
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: color 0.2s;
+            flex-grow: 1;
+        }
+        .nav-btn.active { color: var(--primary-color); font-weight: 500; }
+        
+        /* Indicador de Carregamento */
+        .loader { text-align: center; padding: 50px; font-size: 1em; color: var(--text-light); }
+    </style>
+</head>
+<body>
+
+    <!-- ABA DE REGISTRO -->
+    <div id="registro-view" class="view active">
+        <div class="page-header"><h1>Olá! 👋</h1></div>
+        <form id="expense-form">
+            <div class="form-group">
+                <label for="categoria">O que você quer registrar hoje?</label>
+                <select id="categoria" name="categoria" required>
+                    <option value="Gasolina">⛽ Gasolina</option>
+                    <option value="Óleo">⚫ Óleo</option>
+                    <option value="Outros">🛠️ Outros</option>
+                    <option value="Infração">⚠️ Infração</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="data">Data</label>
+                <input type="date" id="data" name="data" required>
+            </div>
+            <div class="form-group">
+                <label for="valor">Valor (R$)</label>
+                <input type="number" id="valor" name="valor" step="0.01" placeholder="Ex: 50,25" required>
+            </div>
+            
+            <div id="gasolina-fields" class="hidden-field">
+                <div class="form-group">
+                    <label for="quilometragem">Quilometragem</label>
+                    <input type="number" id="quilometragem" name="quilometragem" step="0.1" placeholder="Ex: 9500,5">
+                </div>
+                <div class="form-group">
+                    <label for="valor_litro">Valor do Litro (R$)</label>
+                    <input type="number" id="valor_litro" name="valor_litro" step="0.01" placeholder="Ex: 5,99">
+                </div>
+            </div>
+            <div id="oleo-fields" class="hidden-field">
+                <div class="form-group">
+                    <label for="oleo_quilometragem">Quilometragem (Opcional)</label>
+                    <input type="number" id="oleo_quilometragem" name="oleo_quilometragem_oleo" step="0.1">
+                </div>
+            </div>
+            <div id="outros-fields" class="hidden-field">
+                 <div class="form-group">
+                    <label for="descricao">Descrição</label>
+                    <input type="text" id="descricao" name="descricao" placeholder="Ex: Pneu traseiro">
+                </div>
+            </div>
+            <div id="infracao-fields" class="hidden-field">
+                 <div class="form-group">
+                    <label for="infracao_descricao">Descrição da Infração</label>
+                    <input type="text" id="infracao_descricao" name="infracao_descricao" placeholder="Ex: Parar no passeio">
+                </div>
+                <div class="form-group">
+                    <label for="infracao_tipo">Tipo da Infração</label>
+                    <select id="infracao_tipo" name="infracao_tipo">
+                        <option value="Leve">Leve</option>
+                        <option value="Média">Média</option>
+                        <option value="Grave">Grave</option>
+                        <option value="Gravíssima">Gravíssima</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="infracao_pontos">Pontos</label>
+                    <input type="number" id="infracao_pontos" name="infracao_pontos" placeholder="Ex: 3">
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">Salvar</button>
+        </form>
+    </div>
+
+    <!-- ABA DE DASHBOARD -->
+    <div id="dashboard-view" class="view">
+        <div class="page-header">
+            <h1>Progresso 📊</h1>
+            <button id="refresh-btn" title="Atualizar Dados">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            </button>
+        </div>
+        <div id="dashboard-content">
+            <!-- Conteúdo do Dashboard será gerado via JavaScript -->
+        </div>
+    </div>
+    
+    <!-- NAVEGAÇÃO INFERIOR -->
+    <nav class="bottom-nav">
+        <button class="nav-btn active" data-view="registro-view">
+            <span>➕</span>
+            <span>Registrar</span>
+        </button>
+        <button class="nav-btn" data-view="dashboard-view">
+             <span>📊</span>
+            <span>Dashboard</span>
+        </button>
+    </nav>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- CONFIGURAÇÃO ---
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_vmkuFk6rMwsQ9lmXfrMpA0ikETA3HxQrf_7qjxbj5OZ1KeDFqCYM3PpmYmbVelWO/exec';
+    const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSXYUEcvzBEg1AQ5754QmQUGb73zVzI6LEI-WmdAxHx1N2_5ZGLPP0DobNZQW1-IUk1qZVOiu0SZ965/pub?gid=817947441&single=true&output=csv';
+
+    // --- ELEMENTOS DO DOM ---
+    const views = document.querySelectorAll('.view');
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const form = document.getElementById('expense-form');
+    const categorySelect = document.getElementById('categoria');
+    const refreshBtn = document.getElementById('refresh-btn');
+    const dashboardContent = document.getElementById('dashboard-content');
+
+    // --- ESTADO DA APLICAÇÃO ---
+    let dashboardInitialized = false;
+    let charts = {};
+    
+    document.getElementById('data').valueAsDate = new Date();
+
+    // --- LÓGICA DE NAVEGAÇÃO ENTRE ABAS ---
+    navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetViewId = btn.getAttribute('data-view');
+            
+            views.forEach(view => view.classList.remove('active'));
+            document.getElementById(targetViewId).classList.add('active');
+
+            navButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (targetViewId === 'dashboard-view' && !dashboardInitialized) {
+                updateDashboard();
+                dashboardInitialized = true;
+            }
+        });
+    });
+
+    refreshBtn.addEventListener('click', updateDashboard);
+
+    // --- LÓGICA DO DASHBOARD ---
+    async function updateDashboard() {
+        dashboardContent.innerHTML = `<p class="loader">Analisando seus dados... ⏳</p>`;
+
+        try {
+            const response = await fetch(`${GOOGLE_SHEET_URL}&t=${new Date().getTime()}`);
+            if (!response.ok) throw new Error('Falha na rede');
+            
+            const csvText = await response.text();
+            const transactions = parseAndTransformCSV(csvText);
+            const indicators = calculateIndicators(transactions);
+            renderDashboard(indicators);
+        } catch (error) {
+            dashboardContent.innerHTML = `<p class="loader">Não foi possível carregar os dados. Tente novamente.</p>`;
+            console.error("Erro ao atualizar dashboard:", error);
+        }
+    }
+    
+    function parseAndTransformCSV(csvText) {
+        const rows = csvText.split('\n').slice(1);
+        const groupedData = {};
+        for (const row of rows) {
+            const columns = row.split(',');
+            if (columns.length < 5) continue;
+            
+            const [id, categoria, data, chave, valor_numerico_str, valor_textual] = columns.map(s => s.trim());
+
+            if (!id || !categoria || !data) continue;
+            
+            if (!groupedData[id]) {
+                groupedData[id] = { id: parseInt(id), categoria: categoria, data: data.split('/').reverse().join('-') };
+            }
+            const cleanChave = chave.toLowerCase().replace(/ /g, '_');
+            const numericValue = parseFloat(valor_numerico_str.replace('.', '').replace(',', '.'));
+
+            if (cleanChave === 'descrição') groupedData[id].descricao = valor_textual;
+            else if (cleanChave === 'valor') groupedData[id].valor = numericValue;
+            else if (cleanChave === 'quilometragem') groupedData[id].quilometragem = numericValue;
+            else if (cleanChave === 'valor_do_litro') groupedData[id].valorLitro = numericValue;
+        }
+        return Object.values(groupedData).sort((a,b) => new Date(a.data) - new Date(b.data) || a.id - b.id);
+    }
+
+    function calculateIndicators(transactions) {
+        if (transactions.length === 0) return {};
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+
+        const monthlyCost = transactions
+            .filter(t => {
+                const transactionDate = new Date(t.data + 'T00:00:00'); // Garante fuso horário local
+                return transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
+            })
+            .reduce((sum, t) => sum + (t.valor || 0), 0);
+            
+        const lastTransactionWithKm = [...transactions].reverse().find(t => t.quilometragem);
+        const initialKm = transactions.find(t => t.quilometragem)?.quilometragem || 0;
+        const latestKm = lastTransactionWithKm ? lastTransactionWithKm.quilometragem : initialKm;
+        const totalDistance = latestKm - initialKm;
+        const totalCost = transactions.reduce((sum, t) => sum + (t.valor || 0), 0);
+        const costPerKm = totalDistance > 0 ? totalCost / totalDistance : 0;
+        const expensesByCategory = transactions.reduce((acc, t) => {
+            if (t.valor > 0) {
+                 acc[t.categoria] = (acc[t.categoria] || 0) + t.valor;
+            }
+            return acc;
+        }, {});
+
+        const fuelStops = transactions.filter(t => t.categoria === 'Gasolina' && t.quilometragem && t.valor && t.valorLitro).sort((a, b) => a.quilometragem - b.quilometragem);
+        const consumptions = [];
+        for (let i = 1; i < fuelStops.length; i++) {
+            const prevStop = fuelStops[i-1]; const currentStop = fuelStops[i];
+            const distance = currentStop.quilometragem - prevStop.quilometragem;
+            const liters = prevStop.valor / prevStop.valorLitro;
+            if (distance > 0 && liters > 0) {
+                consumptions.push({ km: currentStop.quilometragem, consumption: distance / liters, data: currentStop.data });
+            }
+        }
+        const avgConsumption = consumptions.length > 0 ? consumptions.reduce((sum, c) => sum + c.consumption, 0) / consumptions.length : 0;
+
+        return { monthlyCost, totalCost, costPerKm, totalDistance, avgConsumption, expensesByCategory, consumptions };
+    }
+
+    function renderDashboard(indicators) {
+        const formatCurrency = (value) => (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        dashboardContent.innerHTML = `
+            <div class="hero-card">
+                <p class="hero-label">Gasto deste Mês</p>
+                <p class="hero-value">${formatCurrency(indicators.monthlyCost)}</p>
+            </div>
+            <div class="kpi-grid">
+                <div class="kpi-card"><p class="kpi-title">💰 Custo Total</p><p class="kpi-value">${formatCurrency(indicators.totalCost)}</p></div>
+                <div class="kpi-card"><p class="kpi-title">💸 Custo por KM</p><p class="kpi-value">${formatCurrency(indicators.costPerKm)}</p></div>
+                <div class="kpi-card"><p class="kpi-title">🛣️ Distância</p><p class="kpi-value">${(indicators.totalDistance || 0).toFixed(0)} <span class="unit">km</span></p></div>
+                <div class="kpi-card"><p class="kpi-title">⛽ Consumo</p><p class="kpi-value">${(indicators.avgConsumption || 0).toFixed(1)} <span class="unit">km/L</span></p></div>
+            </div>
+            <div class="chart-container"><canvas id="expenses-chart"></canvas></div>
+            <div class="chart-container"><canvas id="consumption-chart"></canvas></div>
+        `;
+        renderCharts(indicators);
+    }
+    
+    function renderCharts(indicators) {
+        Object.values(charts).forEach(chart => chart.destroy());
+        const categoryLabels = {
+            'Gasolina': '⛽ Gasolina',
+            'Óleo': '⚫ Óleo',
+            'Outros': '🛠️ Outros',
+            'Infração': '⚠️ Infração'
+        };
+        const expensesCtx = document.getElementById('expenses-chart').getContext('2d');
+        charts.expenses = new Chart(expensesCtx, {
+            type: 'doughnut', data: { 
+                labels: Object.keys(indicators.expensesByCategory || {}).map(k => categoryLabels[k] || k), 
+                datasets: [{ data: Object.values(indicators.expensesByCategory || {}), backgroundColor: ['#3B82F6', '#22C55E', '#F97316', '#EF4444'], borderWidth: 0 }] 
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Despesas por Categoria', font: { size: 16, weight: '500' } } } }
+        });
+
+        const consumptionCtx = document.getElementById('consumption-chart').getContext('2d');
+        const consumptionData = indicators.consumptions || [];
+        charts.consumption = new Chart(consumptionCtx, {
+            type: 'line', data: { labels: consumptionData.map(c => new Date(c.data + 'T00:00:00').toLocaleDateString('pt-BR')), datasets: [{ label: 'Consumo (km/L)', data: consumptionData.map(c => c.consumption.toFixed(2)), borderColor: '#22C55E', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.2, fill: true }] },
+            options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Histórico de Consumo (km/L)', font: { size: 16, weight: '500' } } }, scales: { y: { beginAtZero: false } } }
+        });
+    }
+
+    // --- LÓGICA DO FORMULÁRIO DE REGISTRO ---
+    const formCategorySelect = document.getElementById('categoria');
+    const updateFormFields = () => {
+        const selectedCategory = formCategorySelect.value;
+        document.getElementById('gasolina-fields').style.display = 'none';
+        document.getElementById('oleo-fields').style.display = 'none';
+        document.getElementById('outros-fields').style.display = 'none';
+        document.getElementById('infracao-fields').style.display = 'none';
+
+        document.getElementById('quilometragem').required = false;
+        document.getElementById('valor_litro').required = false;
+        document.getElementById('descricao').required = false;
+        document.getElementById('infracao_descricao').required = false;
+        document.getElementById('infracao_tipo').required = false;
+        document.getElementById('infracao_pontos').required = false;
+
+        if (selectedCategory === 'Gasolina') {
+            document.getElementById('gasolina-fields').style.display = 'block';
+            document.getElementById('quilometragem').required = true;
+            document.getElementById('valor_litro').required = true;
+        } else if (selectedCategory === 'Óleo') {
+            document.getElementById('oleo-fields').style.display = 'block';
+        } else if (selectedCategory === 'Outros') {
+            document.getElementById('outros-fields').style.display = 'block';
+            document.getElementById('descricao').required = true;
+        } else if (selectedCategory === 'Infração') {
+            document.getElementById('infracao-fields').style.display = 'block';
+            document.getElementById('infracao_descricao').required = true;
+            document.getElementById('infracao_tipo').required = true;
+            document.getElementById('infracao_pontos').required = true;
+        }
+    };
+    formCategorySelect.addEventListener('change', updateFormFields);
+    updateFormFields();
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector('.submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando...';
+
+        const formData = new FormData(form);
+        if (formData.get('categoria') === 'Óleo' && formData.get('oleo_quilometragem_oleo')) {
+            formData.append('quilometragem', formData.get('oleo_quilometragem_oleo'));
+        }
+        if (formData.get('categoria') === 'Infração' && formData.get('infracao_descricao')) {
+            formData.set('descricao', formData.get('infracao_descricao'));
+        }
+        
+        fetch(SCRIPT_URL, { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if(data.result === 'success') {
+                    alert('✅ Dados salvos com sucesso!');
+                    form.reset();
+                    document.getElementById('data').valueAsDate = new Date();
+                    updateFormFields();
+                    dashboardInitialized = false; 
+                } else {
+                    alert('⚠️ Erro ao salvar: ' + (data.message || 'Erro desconhecido.'));
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('🚨 Ocorreu um erro de rede. Verifique sua conexão e tente novamente.');
+            }).finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Salvar';
+            });
+    });
+});
+</script>
+
+</body>
+</html>
+
