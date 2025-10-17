@@ -27,19 +27,30 @@
         }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #E5E7EB; /* Fundo mais escuro para destacar o app */
+            background-color: var(--bg-color); /* Fundo claro por padrão */
             color: var(--text-color);
             margin: 0;
         }
         .app-container {
-            max-width: var(--app-max-width);
+            max-width: 100%; /* Ocupa 100% por padrão */
             margin: 0 auto;
             background-color: var(--bg-color);
             min-height: 100vh;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
             position: relative;
-            padding-bottom: var(--nav-height);
+            /* O padding-bottom é controlado por media queries */
         }
+
+        /* Cria o visual "encaixotado" apenas em telas mobile estreitas */
+        @media (max-width: 480px) {
+            body {
+                background-color: #E5E7EB; /* Fundo escuro */
+            }
+            .app-container {
+                max-width: var(--app-max-width); /* Limita o app */
+                box-shadow: 0 0 20px rgba(0,0,0,0.1); /* Sombra da caixa */
+            }
+        }
+
         /* Estrutura das Abas */
         .view {
             display: none;
@@ -187,26 +198,28 @@
             margin-bottom: 20px;
         }
 
-        /* Navegação Inferior Fixa */
+        /* Navegação Inferior Fixa (Estilo Padrão/Mobile Flutuante) */
         .bottom-nav {
             position: fixed;
-            bottom: 0;
+            bottom: 10px; /* Espaçamento inferior */
             left: 50%;
             transform: translateX(-50%);
-            width: 100%;
-            max-width: var(--app-max-width);
-            height: var(--nav-height);
+            width: calc(100% - 20px); /* Espaçamento lateral */
+            height: auto; /* Altura automática */
             background-color: var(--card-bg);
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-around;
-            border-top: 1px solid #EAEAEA;
+            border-top: none;
+            border-radius: var(--border-radius);
+            padding: 6px;
+            gap: 5px;
         }
         .nav-btn {
             background: none;
             border: none;
             cursor: pointer;
-            padding: 10px;
+            padding: 10px 5px;
             font-size: 0.9em;
             color: var(--text-light);
             display: flex;
@@ -214,16 +227,28 @@
             align-items: center;
             justify-content: center;
             gap: 4px;
-            transition: color 0.2s;
-            flex-grow: 1;
+            transition: color 0.2s, background-color 0.2s;
+            flex: 1;
+            border-radius: 12px;
         }
-        .nav-btn.active { color: var(--primary-color); font-weight: 500; }
+        .nav-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+        }
+        .nav-btn:not(.active):hover {
+            background-color: #f4f4f5;
+        }
         
         /* Indicador de Carregamento */
         .loader { text-align: center; padding: 50px; font-size: 1em; color: var(--text-light); }
         
-        /* MELHORIAS PARA CELULAR */
+        /* MELHORIAS PARA CELULAR (até 600px) */
         @media (max-width: 600px) {
+            .app-container {
+                /* Garante que o conteúdo não fique sob a barra no mobile */
+                padding-bottom: 85px; /* Altura da nav + respiro */
+            }
             .kpi-grid {
                 grid-template-columns: 1fr; /* Empilha os cards */
             }
@@ -241,11 +266,53 @@
             }
         }
 
+        /* --- INÍCIO: MELHORIAS PARA DESKTOP (acima de 600px) --- */
+        @media (min-width: 601px) {
+            .app-container {
+                /* Adiciona espaço no fundo para a barra flutuante não cobrir conteúdo */
+                padding-bottom: 120px; 
+            }
+
+            .view {
+                /* Limita a largura do *conteúdo* (abas) para melhor leitura e centraliza */
+                max-width: 800px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            
+            /* --- Estilos da Navegação Inferior para Desktop --- */
+            .bottom-nav {
+                width: 100%; /* Permite que o max-width funcione corretamente com o transform */
+                max-width: 800px;
+                height: auto;
+                border-radius: var(--border-radius);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+                padding: 6px;
+                bottom: 20px;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .nav-btn {
+                flex: 0 1 150px; /* Não cresce, encolhe, base de 150px */
+                flex-direction: row;
+                justify-content: center;
+                gap: 8px;
+                font-size: 1em;
+                font-weight: 500;
+                padding: 12px 20px;
+            }
+
+            .nav-btn.active {
+                box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+            }
+        }
+        /* --- FIM: MELHORIAS PARA DESKTOP --- */
     </style>
 </head>
 <body>
 <div class="app-container">
-    <!-- ABA DE REGISTRO -->
+
     <div id="registro-view" class="view active">
         <div class="page-header"><h1>Olá! 👋</h1></div>
         <form id="expense-form">
@@ -313,7 +380,6 @@
         </form>
     </div>
 
-    <!-- ABA DE DASHBOARD -->
     <div id="dashboard-view" class="view">
         <div class="page-header">
             <h1>Progresso 📊</h1>
@@ -331,11 +397,9 @@
         </div>
 
         <div id="dashboard-content">
-            <!-- Conteúdo do Dashboard será gerado via JavaScript -->
-        </div>
+            </div>
     </div>
     
-    <!-- NAVEGAÇÃO INFERIOR -->
     <nav class="bottom-nav">
         <button class="nav-btn active" data-view="registro-view">
             <span>➕</span>
@@ -718,4 +782,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-
